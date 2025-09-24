@@ -18,7 +18,7 @@ function getGeo(headers: Headers) {
 
 async function logEvent(body: any) {
   const url = `${process.env.SUPABASE_URL}/rest/v1/email_tracking`;
-  await fetch(url, {
+  return fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -30,7 +30,8 @@ async function logEvent(body: any) {
   });
 }
 
-export default async function handler(req: Request) {
+// NOTE: event/context is the 2nd arg → use event.waitUntil(...)
+export default async function handler(req: Request, event: any) {
   const { searchParams } = new URL(req.url);
   const email = searchParams.get("email");
 
@@ -43,10 +44,14 @@ export default async function handler(req: Request) {
     headers: { "Content-Type": "image/gif", "Cache-Control": "no-store" }
   });
 
-  const event = { type: "open", email, url: null, ip, country, city, user_agent};
+  const eventBody = { type: "open", email, url: null, ip, country, city, user_agent };
 
-  // @ts-ignore
-  resp.waitUntil(logEvent(event));
+  if (event?.waitUntil) {
+    event.waitUntil(logEvent(eventBody));   // correct usage
+  } else {
+    // fallback: fire-and-forget (no await)
+    logEvent(eventBody);
+  }
 
   return resp;
 }

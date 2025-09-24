@@ -15,7 +15,7 @@ function getGeo(headers: Headers) {
 function safeUrl(url: string) {
   try {
     const u = new URL(url);
-    return ["http:", "https:"].includes(u.protocol);
+    return u.protocol === "http:" || u.protocol === "https:";
   } catch {
     return false;
   }
@@ -23,7 +23,7 @@ function safeUrl(url: string) {
 
 async function logEvent(body: any) {
   const url = `${process.env.SUPABASE_URL}/rest/v1/email_tracking`;
-  await fetch(url, {
+  return fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -35,7 +35,7 @@ async function logEvent(body: any) {
   });
 }
 
-export default async function handler(req: Request) {
+export default async function handler(req: Request, event: any) {
   const { searchParams } = new URL(req.url);
   const email = searchParams.get("email");
   const target = searchParams.get("url") || "";
@@ -49,15 +49,18 @@ export default async function handler(req: Request) {
   const { country, city } = getGeo(headers);
   const user_agent = headers.get("user-agent") || "";
 
+  const eventBody = { type: "click", email, url: target, ip, country, city, user_agent };
+
   const resp = new Response(null, {
     status: 302,
     headers: { Location: target, "Cache-Control": "no-store" }
   });
 
-  const event = { type: "click", email, url: target, ip, country, city, user_agent};
-
-  // @ts-ignore
-  resp.waitUntil(logEvent(event));
+  if (event?.waitUntil) {
+    event.waitUntil(logEvent(eventBody));
+  } else {
+    logEvent(eventBody);
+  }
 
   return resp;
 }
