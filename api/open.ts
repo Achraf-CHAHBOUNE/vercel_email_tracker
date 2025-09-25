@@ -36,23 +36,19 @@ async function logEvent(body: any) {
 export default async function handler(req: Request, event: any) {
   const { searchParams } = new URL(req.url);
   
-  // Get parameters
-  const eid = searchParams.get("eid");
-  const campaign = searchParams.get("c");
-  const randomParam = searchParams.get("r");
+  const email = searchParams.get("email");
   const signature = searchParams.get("sig");
   
-  // Verify required parameters
-  if (!eid || !campaign || !randomParam || !signature) {
-    return new Response("Missing parameters", { status: 400 });
-  }
-  
-  // Verify HMAC signature
-  const paramsToSign = new URLSearchParams({ eid, c: campaign, r: randomParam });
-  const isValidSignature = await verifyHMAC(paramsToSign.toString(), signature, process.env.TRACKING_SECRET!);
-  
-  if (!isValidSignature) {
-    return new Response("Invalid signature", { status: 403 });
+  // If signature provided, verify it
+  if (signature) {
+    if (!email) {
+      return new Response("Missing email", { status: 400 });
+    }
+    
+    const isValidSignature = await verifyHMAC(email, signature, process.env.TRACKING_SECRET!);
+    if (!isValidSignature) {
+      return new Response("Invalid signature", { status: 403 });
+    }
   }
   
   const headers = req.headers;
@@ -66,17 +62,14 @@ export default async function handler(req: Request, event: any) {
   
   const eventBody = {
     type: "open",
-    eid,
-    campaign,
-    email: null, // Keep for backward compatibility but use eid primarily
+    email,
     url: null,
     ip,
     country,
     city,
     user_agent: userAgent,
     is_proxy: isProxy,
-    is_scanner: isScanner,
-    random_param: randomParam
+    is_scanner: isScanner
   };
   
   // Response with strict no-cache headers

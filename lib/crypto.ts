@@ -25,10 +25,3 @@ export async function verifyHMAC(data: string, signature: string, secret: string
     return false;
   }
 }
-
-export async function buildSignedURL(baseUrl: string, params: Record<string, string>, secret: string): Promise<string> {
-  const searchParams = new URLSearchParams(params);
-  const queryString = searchParams.toString();
-  const signature = await generateHMAC(queryString, secret);
-  return `${baseUrl}?${queryString}&sig=${signature}`;
-}

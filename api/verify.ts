@@ -29,12 +29,10 @@ async function logEvent(body: any) {
 export default async function handler(req: Request, event: any) {
   const { searchParams } = new URL(req.url);
   
-  const eid = searchParams.get("eid");
-  const campaign = searchParams.get("c");
-  const seg = searchParams.get("seg");
-  const targetUrl = searchParams.get("u");
+  const email = searchParams.get("email");
+  const targetUrl = searchParams.get("url");
   
-  if (!eid || !campaign || !targetUrl) {
+  if (!email || !targetUrl) {
     return new Response("Missing parameters", { status: 400 });
   }
   
@@ -51,10 +49,7 @@ export default async function handler(req: Request, event: any) {
   
   const clickEvent = {
     type: eventType,
-    eid,
-    campaign,
-    seg,
-    email: null,
+    email,
     url: targetUrl,
     ip,
     country,

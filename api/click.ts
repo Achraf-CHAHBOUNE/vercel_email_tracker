@@ -41,15 +41,11 @@ async function logEvent(body: any) {
 export default async function handler(req: Request, event: any) {
   const { searchParams } = new URL(req.url);
   
-  // Get parameters
-  const eid = searchParams.get("eid");
-  const seg = searchParams.get("seg");
-  const campaign = searchParams.get("c");
-  const targetUrl = searchParams.get("u");
+  const email = searchParams.get("email");
+  const targetUrl = searchParams.get("url");
   const signature = searchParams.get("sig");
   
-  // Verify required parameters
-  if (!eid || !campaign || !targetUrl || !signature) {
+  if (!email || !targetUrl) {
     return new Response("Missing parameters", { status: 400 });
   }
   
@@ -57,17 +53,13 @@ export default async function handler(req: Request, event: any) {
     return new Response("Invalid target URL", { status: 400 });
   }
   
-  // Verify HMAC signature
-  const paramsForSigning = new URLSearchParams();
-  paramsForSigning.set("eid", eid);
-  paramsForSigning.set("c", campaign);
-  paramsForSigning.set("u", targetUrl);
-  if (seg) paramsForSigning.set("seg", seg);
-  
-  const isValidSignature = await verifyHMAC(paramsForSigning.toString(), signature, process.env.TRACKING_SECRET!);
-  
-  if (!isValidSignature) {
-    return new Response("Invalid signature", { status: 403 });
+  // If signature provided, verify it
+  if (signature) {
+    const dataToSign = `${email}${targetUrl}`;
+    const isValidSignature = await verifyHMAC(dataToSign, signature, process.env.TRACKING_SECRET!);
+    if (!isValidSignature) {
+      return new Response("Invalid signature", { status: 403 });
+    }
   }
   
   const headers = req.headers;
@@ -79,10 +71,7 @@ export default async function handler(req: Request, event: any) {
   // Log raw click
   const rawClickEvent = {
     type: "click_raw",
-    eid,
-    campaign,
-    seg,
-    email: null,
+    email,
     url: targetUrl,
     ip,
     country,
@@ -93,17 +82,15 @@ export default async function handler(req: Request, event: any) {
   };
   
   // Set verification cookie (10 minutes)
-  const cookieValue = `${eid}_${Date.now()}`;
-  const cookieExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+  const cookieValue = `${email}_${Date.now()}`;
+  const cookieExpires = new Date(Date.now() + 10 * 60 * 1000);
   
   // Create verification URL
   const verifyUrl = new URL('/api/verify', req.url);
-  verifyUrl.searchParams.set('eid', eid);
-  verifyUrl.searchParams.set('c', campaign);
-  verifyUrl.searchParams.set('u', targetUrl);
-  if (seg) verifyUrl.searchParams.set('seg', seg);
+  verifyUrl.searchParams.set('email', email);
+  verifyUrl.searchParams.set('url', targetUrl);
   
-  // HTML response with meta refresh and fallback image
+  // HTML response with meta refresh
   const htmlResponse = `<!DOCTYPE html>
 <html>
 <head>
@@ -112,7 +99,6 @@ export default async function handler(req: Request, event: any) {
 <body>
   <img src="${verifyUrl.toString()}" width="1" height="1" style="display:none;">
   <script>window.location.href='${verifyUrl.toString()}';</script>
-  <p>Redirecting... <a href="${verifyUrl.toString()}">Click here if not redirected</a></p>
 </body>
 </html>`;
   
