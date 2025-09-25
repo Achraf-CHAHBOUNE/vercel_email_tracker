@@ -49,7 +49,7 @@ export default async function handler(req: Request, event: any) {
   
   // Verify HMAC signature
   const paramsToSign = new URLSearchParams({ eid, c: campaign, r: randomParam });
-  const isValidSignature = verifyHMAC(paramsToSign.toString(), signature, process.env.TRACKING_SECRET!);
+  const isValidSignature = await verifyHMAC(paramsToSign.toString(), signature, process.env.TRACKING_SECRET!);
   
   if (!isValidSignature) {
     return new Response("Invalid signature", { status: 403 });
