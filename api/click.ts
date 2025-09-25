@@ -43,24 +43,6 @@ export default async function handler(req: Request, event: any) {
   
   const email = searchParams.get("email");
   const targetUrl = searchParams.get("url");
-  const signature = searchParams.get("sig");
-  
-  if (!email || !targetUrl) {
-    return new Response("Missing parameters", { status: 400 });
-  }
-  
-  if (!safeUrl(targetUrl)) {
-    return new Response("Invalid target URL", { status: 400 });
-  }
-  
-  // If signature provided, verify it
-  if (signature) {
-    const dataToSign = `${email}${targetUrl}`;
-    const isValidSignature = await verifyHMAC(dataToSign, signature, process.env.TRACKING_SECRET!);
-    if (!isValidSignature) {
-      return new Response("Invalid signature", { status: 403 });
-    }
-  }
   
   const headers = req.headers;
   const ip = getIP(headers);
